@@ -1,109 +1,230 @@
 # AI Text Summarizer
 
-AI Text Summarizer is a simple NLP application I built to generate concise summaries from long-form text using a pretrained Transformer model.
+AI Text Summarizer is an NLP application I built to generate concise summaries from long-form text using pretrained Transformer models.
 
-The application uses **Hugging Face Transformers**, **BART (`facebook/bart-large-cnn`)**, **PyTorch**, and **Streamlit**. The main goal of this project was not only to build a working summarizer, but also to understand how pretrained NLP models can be integrated into a real application.
+The project is built with **Python, Hugging Face Transformers, PyTorch, DistilBART, and Streamlit**. I initially tested `facebook/bart-large-cnn` and later evaluated a distilled BART model to improve inference speed on CPU.
 
 ## Problem Statement
 
-Reading lengthy articles, reports, notes, and documents can be time-consuming. The idea behind this project is to reduce that effort by allowing users to provide text and receive a shorter version containing the most important information.
+Reading long articles, reports, notes, and documents can take a significant amount of time.
+
+The goal of this project is to provide a simple interface where users can paste text and generate a shorter summary containing the important information.
 
 ## Features
 
 * Accepts user-provided text
 * Generates abstractive summaries
-* Uses the pretrained BART Large CNN model
-* Simple web interface built with Streamlit
-* Basic input validation
+* Supports Short, Medium, and Long summary options
+* Displays input word count
+* Displays summary word count
+* Measures summary generation time
+* Handles empty and very short inputs
+* Supports long text through chunking
 * Runs locally using PyTorch
-* Uses an isolated Python virtual environment for dependency management
+* Provides an interactive Streamlit interface
 
 ## Tech Stack
 
-| Technology                | Purpose                                           |
-| ------------------------- | ------------------------------------------------- |
-| Python                    | Core application development                      |
-| Hugging Face Transformers | Loading and working with the pretrained NLP model |
-| BART Large CNN            | Text summarization model                          |
-| PyTorch                   | Model inference                                   |
-| Streamlit                 | Web interface                                     |
-| Git & GitHub              | Version control and project hosting               |
+| Technology                | Purpose                                 |
+| ------------------------- | --------------------------------------- |
+| Python                    | Core application development            |
+| Hugging Face Transformers | Loading and using pretrained NLP models |
+| DistilBART                | Current summarization model             |
+| PyTorch                   | Model inference                         |
+| Streamlit                 | Web interface                           |
+| Git                       | Version control                         |
+| GitHub                    | Project hosting                         |
 
-## Architecture
+## Current Model
+
+The current version uses:
+
+```text
+sshleifer/distilbart-cnn-12-6
+```
+
+This model is a distilled version of BART designed to provide a better balance between summarization quality and inference speed.
+
+I initially used:
+
+```text
+facebook/bart-large-cnn
+```
+
+but CPU inference was slower, so I compared it with DistilBART.
+
+## Model Performance Comparison
+
+I tested both models on the same machine using CPU inference.
+
+| Model                         | Summary Words | Generation Time |
+| ----------------------------- | ------------: | --------------: |
+| facebook/bart-large-cnn       |            41 |         26.15 s |
+| sshleifer/distilbart-cnn-12-6 |            44 |         18.76 s |
+
+In this test, DistilBART reduced generation time by approximately 28% while producing a summary of similar length.
+
+Because the application currently runs on CPU, I selected DistilBART for the latest version.
+
+## Project Architecture
 
 ```text
 User
-  │
-  ▼
+  |
+  v
 Streamlit UI
-  │
-  ▼
+  |
+  v
 Input Validation
-  │
-  ▼
+  |
+  v
+Summary Length Selection
+  |
+  v
 summarize_text()
-  │
-  ▼
-Hugging Face Pipeline
-  │
-  ▼
-Tokenizer
-  │
-  ▼
-BART Large CNN
-  │
-  ▼
-Generated Summary
-  │
-  ▼
-Streamlit UI
+  |
+  v
+Check Input Length
+  |
+  v
+Split Long Text into Chunks
+  |
+  v
+DistilBART Summarization Pipeline
+  |
+  v
+Summarize Each Chunk
+  |
+  v
+Combine Chunk Summaries
+  |
+  v
+Display Final Summary
 ```
 
 ## How It Works
 
-When the user enters text in the Streamlit application and clicks **Summarize**, the input is passed to the `summarize_text()` function.
+The user enters text through the Streamlit interface.
 
-The application uses the Hugging Face summarization pipeline with the `facebook/bart-large-cnn` model.
+The application first validates the input and calculates the number of words.
 
-Internally, the input text is tokenized and passed to BART. The model generates a shorter sequence of tokens representing the important information from the original text. These tokens are decoded back into readable text and returned to the Streamlit interface.
+The user can select one of three summary lengths:
 
-The current generation configuration uses:
+```text
+Short
+Medium
+Long
+```
 
-* `max_length` to limit the maximum summary length
-* `min_length` to avoid extremely short summaries
-* `do_sample=False` to keep generation deterministic rather than introducing random sampling
+The selected option controls the minimum and maximum generated summary length.
+
+For long input text, the application splits the text into smaller chunks before sending each chunk to the summarization model.
+
+Each chunk is summarized individually and the results are combined into the final output.
+
+The application also measures how long the summarization process takes.
+
+## Summary Length Options
+
+The current configuration uses:
+
+```text
+Short
+min_length = 20
+max_length = 50
+
+Medium
+min_length = 30
+max_length = 80
+
+Long
+min_length = 50
+max_length = 120
+```
+
+The generation process uses:
+
+```text
+do_sample = False
+```
+
+This avoids random sampling and helps produce more consistent summaries.
+
+## Long-Text Handling
+
+Transformer models have maximum input token limits.
+
+To avoid sending very large text directly to the model, the application currently splits long input into smaller word-based chunks.
+
+Example:
+
+```text
+1200-word document
+       |
+       v
+500 words
+500 words
+200 words
+       |
+       v
+Summarize each chunk
+       |
+       v
+Combine summaries
+```
+
+This is the first version of long-document handling.
+
+A future improvement will replace word-based chunking with token-based chunking because Transformer limits are based on tokens rather than words.
 
 ## Project Structure
 
 ```text
 ai-text-summarizer/
-│
-├── app.py
-├── summarizer.py
-├── requirements.txt
-├── README.md
-├── .gitignore
-│
-└── .venv/          # Local only, ignored by Git
+|
+|-- app.py
+|-- summarizer.py
+|-- requirements.txt
+|-- README.md
+|-- .gitignore
+|
+`-- .venv/        # Local environment, ignored by Git
 ```
 
 ### `app.py`
 
-Handles the Streamlit interface, receives user input, calls the summarization function, and displays the generated summary.
+Handles:
+
+* Streamlit UI
+* Text input
+* Input word count
+* Summary-length selection
+* Loading spinner
+* Summary output
+* Summary word count
+* Generation-time measurement
 
 ### `summarizer.py`
 
-Contains the core AI logic. It loads the pretrained BART model through Hugging Face Transformers and exposes the `summarize_text()` function.
+Handles:
+
+* Loading the Transformer summarization pipeline
+* Loading DistilBART
+* Input validation
+* Summary-length configuration
+* Long-text chunking
+* Summarizing each chunk
+* Returning the final summary
 
 ### `requirements.txt`
 
-Contains the Python dependencies and versions required to reproduce the project environment.
+Contains the Python packages and versions required to reproduce the project environment.
 
 ### `.gitignore`
 
-Prevents local development files such as `.venv` and Python cache files from being committed to the repository.
+Prevents unnecessary development files such as `.venv` and Python cache files from being uploaded to GitHub.
 
-## Getting Started
+## Installation
 
 ### 1. Clone the repository
 
@@ -112,7 +233,7 @@ git clone https://github.com/maheswarreddy-ai/ai-text-summarizer.git
 cd ai-text-summarizer
 ```
 
-### 2. Create a virtual environment
+### 2. Create a Python virtual environment
 
 ```bash
 py -3.11 -m venv .venv
@@ -130,70 +251,90 @@ Activate it on Windows:
 pip install -r requirements.txt
 ```
 
-### 4. Run the application
+## Run the Application
+
+Start the Streamlit application:
 
 ```bash
 streamlit run app.py
 ```
 
-Streamlit will start the application locally in the browser.
+The application will open in the browser.
 
-## Model
+The default local address is usually:
 
-The project uses **`facebook/bart-large-cnn`**, a pretrained sequence-to-sequence Transformer model fine-tuned for abstractive text summarization.
-
-Unlike extractive summarization, which mainly selects sentences from the original text, abstractive summarization can generate new sentences that capture the important meaning of the source content.
+```text
+http://localhost:8501
+```
 
 ## Current Limitations
 
-The current version is intentionally kept simple while I build and understand the core summarization pipeline.
-
-Some current limitations are:
-
-* Very long documents can exceed the model's input token limit.
-* Inference can be slow when running BART Large entirely on CPU.
-* Only text input is currently supported.
-* Summary length uses fixed generation parameters.
-* The model is loaded locally, which requires additional memory and storage.
+* Chunking is currently based on words instead of tokenizer tokens
+* Each chunk requires a separate model inference call
+* Long documents therefore take more time to summarize
+* CPU inference is slower than GPU inference
+* PDF and DOCX files are not yet supported
+* Combined chunk summaries are not currently re-summarized
 
 ## Planned Improvements
 
-I plan to extend the project with:
-
-* Long-document chunking
-* Short, Medium, and Long summary options
-* PDF and DOCX support
-* Word and token statistics
-* Better exception handling
-* Loading/progress indicators
-* Improved Streamlit interface
-* REST API using FastAPI
+* Token-based chunking
+* Final re-summarization of chunk summaries
+* PDF upload
+* DOCX upload
+* Better UI design
+* Model selection from the interface
+* More systematic model benchmarking
+* Improved exception handling
+* Caching
+* FastAPI backend
 * Cloud deployment
 
 ## What I Learned
 
-Building this project helped me understand the complete workflow of integrating a pretrained NLP model into an application:
+This project helped me understand the complete workflow of integrating a pretrained NLP model into an application:
 
 ```text
 User Input
-   ↓
+   |
+   v
+Validation
+   |
+   v
+Chunking
+   |
+   v
 Tokenization
-   ↓
+   |
+   v
 Transformer Model
-   ↓
-Text Generation
-   ↓
-Decoded Summary
-   ↓
+   |
+   v
+Generated Summary
+   |
+   v
 Application Output
 ```
 
-I also gained hands-on experience with Python virtual environments, dependency management, Hugging Face Transformers, PyTorch inference, Streamlit, Git, GitHub, and handling library-version compatibility issues.
+I also gained hands-on experience with:
+
+* Python virtual environments
+* Dependency management
+* Hugging Face Transformers
+* BART and DistilBART
+* PyTorch inference
+* Streamlit
+* Model latency measurement
+* Model comparison
+* Long-text handling
+* Git
+* GitHub
+* Library-version compatibility
 
 ## Author
 
 **Maheswar Reddy**
 
-AI/ML and Generative AI enthusiast focused on building practical AI applications.
+Building practical AI/ML and Generative AI applications.
 
 GitHub: `maheswarreddy-ai`

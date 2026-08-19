@@ -6,8 +6,19 @@ summarizer = pipeline(
 )
 
 
-def summarize_text(text, summary_length="Medium"):
+def split_text(text, max_words=500):
+    words = text.split()
 
+    chunks = []
+
+    for i in range(0, len(words), max_words):
+        chunk = " ".join(words[i:i + max_words])
+        chunks.append(chunk)
+
+    return chunks
+
+
+def summarize_text(text, summary_length="Medium"):
     if not text.strip():
         return "Please enter some text."
 
@@ -23,11 +34,20 @@ def summarize_text(text, summary_length="Medium"):
         min_len = 50
         max_len = 120
 
-    result = summarizer(
-        text,
-        min_length=min_len,
-        max_length=max_len,
-        do_sample=False
-    )
+    chunks = split_text(text)
 
-    return result[0]["summary_text"]
+    summaries = []
+
+    for chunk in chunks:
+        result = summarizer(
+            chunk,
+            min_length=min_len,
+            max_length=max_len,
+            do_sample=False
+        )
+
+        summaries.append(result[0]["summary_text"])
+
+    final_summary = " ".join(summaries)
+
+    return final_summary

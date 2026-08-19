@@ -1,6 +1,8 @@
-import streamlit as st
 import time
+import streamlit as st
+
 from summarizer import summarize_text
+
 
 st.set_page_config(
     page_title="AI Text Summarizer",
@@ -17,7 +19,7 @@ st.write(
 text = st.text_area(
     "Enter text to summarize",
     height=300,
-    placeholder="Paste your article, notes, or report here..."
+    placeholder="Paste your article, notes, report, or long document here..."
 )
 
 word_count = len(text.split())
@@ -39,7 +41,6 @@ if st.button("Summarize", use_container_width=True):
 
     else:
         with st.spinner("Generating summary..."):
-
             start_time = time.time()
 
             summary = summarize_text(
@@ -49,13 +50,16 @@ if st.button("Summarize", use_container_width=True):
 
             end_time = time.time()
 
+        summary_word_count = len(summary.split())
+
+        st.success("Summary generated successfully!")
+
         st.subheader("Summary")
 
         st.write(summary)
 
-        summary_word_count = len(summary.split())
-
         st.caption(
+            f"Input words: {word_count} | "
             f"Summary words: {summary_word_count} | "
             f"Generated in {end_time - start_time:.2f} seconds"
         )
